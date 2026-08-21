@@ -1,0 +1,5 @@
+- insert:
+    - id: accurlex-dsh-legal
+      name: '@accurlex/dsh-legal'
+      config:
+        toolCallTimeoutMs: 600000

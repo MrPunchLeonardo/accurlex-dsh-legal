@@ -1,0 +1,30 @@
+{
+  "name": "@accurlex/dsh-legal",
+  "version": "0.1.0",
+  "private": false,
+  "description": "DeepSeek Harness plugin for accurLex Open Platform legal tools",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrPunchLeonardo/accurlex-dsh-legal.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MrPunchLeonardo/accurlex-dsh-legal/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
