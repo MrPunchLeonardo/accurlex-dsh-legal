@@ -2,6 +2,25 @@
 
 DeepSeek Harness 的 accurLex 法律工具 bundle。它直接调用 accurLex Open Platform REST API，不修改 accurLex 服务端，也不依赖旧版 MCP/stdio/JWT 接入。
 
+## 快速开始
+
+这是一个已发布到 npm 的 DSH bundle。实际使用请安装到 `web` 或 `headless` profile：
+
+```powershell
+$env:ACCURLEX_API_KEY = 'ak_live_***'
+dsh plugin --profile web add @accurlex/dsh-legal
+dsh web
+```
+
+只验证注册和配置合并时使用 `demo` profile：
+
+```powershell
+dsh plugin --profile demo add @accurlex/dsh-legal
+dsh --profile demo --dump-config
+```
+
+插件仓库：[MrPunchLeonardo/accurlex-dsh-legal](https://github.com/MrPunchLeonardo/accurlex-dsh-legal)。`demo` 只用于注册检查；实际 Agent 使用请按目标 profile 安装 bundle。首次使用前，请先阅读下方的账号注册和 API Key 配置说明。
+
 ## 插件许可证
 
 `@accurlex/dsh-legal` 这个 npm 插件包及本仓库按 MIT License 发布，许可证文件会随 bundle 分发。本声明只适用于本 DSH 插件，不代表 accurLex 平台、开放平台 API、服务端或前端采用 MIT。

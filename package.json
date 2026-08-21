@@ -1,11 +1,23 @@
 {
   "name": "@accurlex/dsh-legal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "DeepSeek Harness plugin for accurLex Open Platform legal tools",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "legal-ai",
+    "contract-review",
+    "law-search",
+    "document-drafting",
+    "accurlex"
+  ],
   "license": "MIT",
   "type": "module",
   "main": "src/index.js",
+  "homepage": "https://github.com/MrPunchLeonardo/accurlex-dsh-legal#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MrPunchLeonardo/accurlex-dsh-legal.git"
