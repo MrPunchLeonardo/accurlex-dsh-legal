@@ -84,8 +84,8 @@ export async function requestAccurLex({
   signal,
   environment = process.env,
   fetchImpl = globalThis.fetch,
+  apiKey = environment.ACCURLEX_API_KEY,
 }) {
-  const apiKey = environment.ACCURLEX_API_KEY;
   if (!apiKey) {
     throw new AccurLexError('configuration_error', '未配置 ACCURLEX_API_KEY。', { status: 500 });
   }
@@ -98,7 +98,7 @@ export async function requestAccurLex({
     Accept: 'application/json, application/x-ndjson',
     Authorization: `Bearer ${apiKey}`,
   };
-  const init = { method, headers, signal };
+  const init = { method, headers, signal, redirect: 'error' };
   if (method !== 'GET') {
     headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(body ?? {});

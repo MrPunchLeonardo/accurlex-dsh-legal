@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 import {
   apply,
+  createToolDefinitions,
   DEFAULT_TOOL_CALL_TIMEOUT_MS,
   toolDefinitions,
 } from '../src/index.js';
@@ -20,7 +24,7 @@ afterEach(() => {
 });
 
 function setMockEnv(server) {
-  process.env.ACCURLEX_API_KEY = 'ak_test_mock';
+  process.env.ACCURLEX_API_KEY = 'ak_live_' + 'synthetic_test_key_'.repeat(3);
   process.env.ACCURLEX_API_BASE_URL = server.baseUrl;
 }
 
@@ -41,7 +45,7 @@ async function withServer(handler, callback) {
 }
 
 describe('DSH plugin registration', () => {
-  test('registers five tools without making a request or requiring a key', () => {
+  test('registers six tools without making a request or requiring a key', () => {
     delete process.env.ACCURLEX_API_KEY;
     const { ctx, registered } = createFakeDshContext();
     apply(ctx);
@@ -51,6 +55,7 @@ describe('DSH plugin registration', () => {
       'accurlex_contract_review',
       'accurlex_document_draft',
       'accurlex_account_usage',
+      'accurlex_connect',
     ]);
     for (const tool of registered) {
       assert.equal(tool.parameters.type, 'object');
@@ -70,7 +75,7 @@ describe('DSH plugin registration', () => {
   test('maps toolCallTimeoutMs to native timeoutMs and rejects invalid values', () => {
     const { ctx, registered } = createFakeDshContext();
     apply(ctx, { toolCallTimeoutMs: 900_000 });
-    assert.equal(registered.length, 5);
+    assert.equal(registered.length, 6);
     assert.deepEqual([...new Set(registered.map((tool) => tool.timeoutMs))], [900_000]);
     assert.throws(() => apply(ctx, { toolCallTimeoutMs: 0 }), /toolCallTimeoutMs/);
     assert.throws(() => apply(ctx, { toolCallTimeoutMs: 1.5 }), /toolCallTimeoutMs/);
@@ -94,7 +99,7 @@ describe('accurLex REST tool mapping', () => {
     await withServer(async (request) => {
       assert.equal(request.method, 'POST');
       assert.equal(request.url, '/v1/qa');
-      assert.equal(request.headers.authorization, 'Bearer ak_test_mock');
+      assert.equal(request.headers.authorization, 'Bearer ' + process.env.ACCURLEX_API_KEY);
       assert.equal(request.body.question, '劳动合同问题');
       assert.equal(request.body.context_text, '完整的合成背景材料');
       assert.deepEqual(request.body.history, [{ role: 'user', content: '此前问题' }]);
@@ -331,14 +336,17 @@ describe('合同审查 output_mode 和 NDJSON', () => {
 });
 
 describe('错误、取消和输入边界', () => {
-  test('returns configuration error without making a request', async () => {
+  test('guides missing credentials to SMS onboarding without making a request', async () => {
     await withServer(async () => {
       throw new Error('must not be called');
     }, async (server) => {
       delete process.env.ACCURLEX_API_KEY;
-      const result = await getTool('accurlex_legal_qa').execute({ question: '合成问题' }, execution());
+      const tools = createToolDefinitions({}, { home: path.join(os.tmpdir(), 'accurlex-no-home-' + randomUUID()) });
+      const result = await tools.find(tool => tool.name === 'accurlex_legal_qa').execute({ question: '合成问题' }, execution());
       assert.equal(result.ok, false);
-      assert.equal(result.error.code, 'configuration_error');
+      assert.equal(result.error.code, 'api_key_required');
+      assert.equal(result.capability, 'qa_deep');
+      assert.match(result.content, /accurlex_connect/);
       assert.equal(server.requests.length, 0);
     });
   });

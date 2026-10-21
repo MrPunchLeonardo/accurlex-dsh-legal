@@ -118,7 +118,7 @@ export function mapQaArgs(args = {}) {
       history,
       stream: true,
     },
-    meta: { mode },
+    meta: { mode, scope: `qa_${mode}` },
   };
 }
 
@@ -134,7 +134,7 @@ export function mapLawSearchArgs(args = {}) {
       mode,
       stream: true,
     },
-    meta: { mode },
+    meta: { mode, scope: 'law_search' },
   };
 }
 
@@ -155,7 +155,7 @@ export function mapContractReviewArgs(args = {}) {
       history,
       stream: true,
     },
-    meta: { outputMode },
+    meta: { outputMode, scope: 'contract_review' },
   };
 }
 
@@ -180,15 +180,16 @@ export function mapDocumentDraftArgs(args = {}) {
       history,
       stream: true,
     },
-    meta: {},
+    meta: { scope: 'document_draft' },
   };
 }
 
-export function mapAccountUsageArgs() {
+export function mapAccountUsageArgs(args = {}) {
+  const scope = enumValue(args.capability, 'capability', ['qa_deep', 'qa_expert', 'law_search', 'document_draft', 'contract_review'], 'qa_deep');
   return {
     method: 'GET',
     path: '/v1/account_usage',
     body: null,
-    meta: {},
+    meta: { scope },
   };
 }

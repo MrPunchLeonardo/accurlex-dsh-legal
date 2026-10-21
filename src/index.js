@@ -1,4 +1,5 @@
 import { publicError, requestAccurLex } from './api-client.js';
+import { createConnection, createConnectionTool, connectionGuidance, SCOPES } from './connection.js';
 import {
   mapAccountUsageArgs,
   mapContractReviewArgs,
@@ -73,18 +74,31 @@ function definition({ name: toolName, description, properties, required = [], ma
       schema: outputSchema,
       render: renderResult,
     },
-    async execute(args, exec) {
+    async execute(args, exec, connection) {
       try {
         const mapped = mapArgs(args);
+        const apiKey = connection.key(mapped.meta.scope);
+        const environment = connection.environment();
+        if (environment.ACCURLEX_API_KEY === undefined && environment.ACCURLEX_API_BASE_URL
+          && new URL(environment.ACCURLEX_API_BASE_URL).origin !== 'https://accurlex.com') {
+          return { ok: false, tool: toolName, content: '自动开通的凭证仅用于 https://accurlex.com。自定义代理请由用户显式配置 API Key。', error: { code: 'configuration_error' } };
+        }
         const response = await requestAccurLex({
           method: mapped.method,
           path: mapped.path,
           body: mapped.body,
           signal: exec?.signal,
+          apiKey,
+          environment,
+          fetchImpl: connection.fetch,
         });
         return project(response, mapped.meta, toolName);
       } catch (error) {
         const safe = publicError(error);
+        if (safe.code === 'api_key_required') {
+          const scope = mapArgs(args).meta.scope;
+          return { ok: false, tool: toolName, capability: scope, content: connectionGuidance(scope), error: safe };
+        }
         return {
           ok: false,
           tool: toolName,
@@ -203,7 +217,7 @@ function projectUsage(response, _meta, toolName) {
 const baseToolDefinitions = [
   definition({
     name: 'accurlex_legal_qa',
-    description: '调用 accurLex 进行法律问答。可提供完整的相关上下文；插件不会自动读取 workspace。',
+    description: 'accurLex 法律问答：区别于短查询语义检索，会自动解析完整事实与背景。deep 最多10000字符，expert最多30000字符，上限内尽量传入完整相关材料；仅补充或定点检索时组织针对性查询。无 Key 时使用 accurlex_connect 在对话中完成短信开通。',
     properties: {
       question: { type: 'string', description: '要回答的法律问题。' },
       context_text: { type: 'string', description: '可选的完整相关背景、文件内容或事实材料。' },
@@ -216,9 +230,9 @@ const baseToolDefinitions = [
   }),
   definition({
     name: 'accurlex_law_search',
-    description: '调用已开启的 accurLex 法规检索 API。支持 deep/expert；prompt 是 API canonical 字段，query 是兼容 alias。',
+    description: 'accurLex 法律法规检索：区别于短查询语义检索，优先传入完整案件背景、合同和检索需求，服务会自动解析并检索法条。deep最多10000字符，expert最多30000字符；仅需要补充或定点检索时改写为针对性查询。无 Key 时调用 accurlex_connect 开通 law_search。',
     properties: {
-      prompt: { type: 'string', description: 'API canonical 检索输入。' },
+      prompt: { type: 'string', description: '完整相关材料与检索需求；不必先压缩成关键词。' },
       query: { type: 'string', description: '兼容 alias；仅在 prompt 未提供有效值时使用。' },
       mode: { type: 'string', enum: ['deep', 'expert'], description: '检索模式；expert 已开启，最多 30,000 字符。' },
     },
@@ -228,7 +242,7 @@ const baseToolDefinitions = [
   }),
   definition({
     name: 'accurlex_contract_review',
-    description: '调用 accurLex 审查合同。默认返回 normal 自然语言结果；只有明确选择 output_mode=json 才返回结构化 JSON。',
+    description: 'accurLex 合同审查：合同与立场合计最多30000字符，上限内优先传入完整合同、背景与目标，由服务自动解析；不要为了调用而丢失条款。默认 normal 审查意见书，正文完整呈现；明确需要程序处理时选择 json，不能声称已修改原文档。无 Key 时调用 accurlex_connect 开通 contract_review。',
     properties: {
       contract_text: { type: 'string', description: '完整合同文本或本次审查所需的完整相关材料。' },
       standpoint: { type: 'string', description: '审查立场、目标和需要重点关注的风险。' },
@@ -241,11 +255,11 @@ const baseToolDefinitions = [
   }),
   definition({
     name: 'accurlex_document_draft',
-    description: '调用已开启的 accurLex 文书生成 API。prompt 是 API canonical 字段，requirement 是兼容 alias；可提供完整参考材料和样本文书。',
+    description: 'accurLex 法律文书起草：要求、用户材料、样本文书合计最多30000字符，优先传入完整相关材料，由服务自动解析，不先简化为短检索词。生成的文书正文应全文呈现；检索返回的法条依据按需展示并保留以供核验，不与用户上传的参考材料混淆。无 Key 时调用 accurlex_connect 开通 document_draft。',
     properties: {
       prompt: { type: 'string', description: 'API canonical 文书写作要求。' },
       requirement: { type: 'string', description: '兼容 alias；仅在 prompt 未提供有效值时使用。' },
-      reference_material: { type: 'string', description: '可选的完整事实、条款或参考材料。' },
+      reference_material: { type: 'string', description: '用户提供的完整事实、附件或参考材料；不是服务检索返回的法条。' },
       sample_document: { type: 'string', description: '可选的样本文书。' },
       history: historySchema,
     },
@@ -256,16 +270,20 @@ const baseToolDefinitions = [
   definition({
     name: 'accurlex_account_usage',
     description: '查询当前 accurLex API Key 的近 30 天汇总和近期用量记录。',
-    properties: {},
+    properties: { capability: { type: 'string', enum: SCOPES, description: '查询哪个功能凭证的用量；默认 qa_deep。显式环境变量 Key 始终优先。' } },
     required: [],
     mapArgs: mapAccountUsageArgs,
     project: projectUsage,
   }),
 ];
 
-export function createToolDefinitions(options = {}) {
+export function createToolDefinitions(options = {}, dependencies = {}) {
   const timeoutMs = normalizeToolCallTimeoutMs(options?.toolCallTimeoutMs);
-  return baseToolDefinitions.map((tool) => ({ ...tool, timeoutMs }));
+  const connection = createConnection(dependencies);
+  return [
+    ...baseToolDefinitions.map((tool) => ({ ...tool, timeoutMs, execute: (args, exec) => tool.execute(args, exec, connection) })),
+    { ...createConnectionTool(connection), timeoutMs },
+  ];
 }
 
 export const toolDefinitions = createToolDefinitions();

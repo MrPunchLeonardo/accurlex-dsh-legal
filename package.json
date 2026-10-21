@@ -1,8 +1,8 @@
 {
   "name": "@accurlex/dsh-legal",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": false,
-  "description": "DeepSeek Harness plugin for accurLex Open Platform legal tools",
+  "description": "accurLex 法律工具：在 DeepSeek Harness 对话中短信开通并自动连接 API，完整材料法律问答、法条检索、文书起草与合同审查",
   "keywords": [
     "deepseek",
     "deepseek-harness",
@@ -16,6 +16,9 @@
   ],
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
   "main": "src/index.js",
   "homepage": "https://github.com/MrPunchLeonardo/accurlex-dsh-legal#readme",
   "repository": {
@@ -31,6 +34,7 @@
   "files": [
     "src",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "cordis.patch.yml"
   ],
@@ -38,5 +42,10 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2"
   }
 }
